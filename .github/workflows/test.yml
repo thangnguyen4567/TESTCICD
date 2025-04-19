@@ -1,4 +1,4 @@
-name: Node.js CI/CD
+name: Test Workflow
 
 on:
   push:
@@ -48,7 +48,7 @@ jobs:
         run: npm test -- --coverage
       
       - name: Upload test coverage report
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v2
         with:
           name: coverage-report
           path: coverage/
@@ -69,78 +69,3 @@ jobs:
       - name: CodeQL Analysis
         uses: github/codeql-action/analyze@v2
         if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-      
-  deploy:
-    needs: lint-and-test
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
-    runs-on: ubuntu-latest
-    
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Use Node.js 18.x
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18.x'
-          cache: 'npm'
-          cache-dependency-path: './package-lock.json'
-      
-      - name: Cache node modules
-        uses: actions/cache@v3
-        id: npm-cache
-        with:
-          path: node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package.json', '**/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-      
-      - name: Install dependencies
-        if: steps.npm-cache.outputs.cache-hit != 'true'
-        run: npm ci
-      
-      - name: Build application
-        run: npm run build
-      
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: v${{ github.run_number }}
-          release_name: Release v${{ github.run_number }}
-          draft: false
-          prerelease: false
-      
-      - name: Send notification
-        uses: rtCamp/action-slack-notify@v2
-        env:
-          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
-          SLACK_CHANNEL: ci-cd
-          SLACK_COLOR: ${{ job.status }}
-          SLACK_TITLE: Build and Deploy
-          SLACK_MESSAGE: 'Application has been deployed :rocket:'
-          
-      - name: Send email notification
-        uses: dawidd6/action-send-mail@v3
-        with:
-          server_address: ${{ secrets.MAIL_SERVER }}
-          server_port: ${{ secrets.MAIL_PORT }}
-          username: ${{ secrets.MAIL_USERNAME }}
-          password: ${{ secrets.MAIL_PASSWORD }}
-          subject: 🚀 Commit Code Thành Công - ${{ github.repository }}
-          to: thang.nguyen@vnresource.org
-          from: GitHub Actions <${{ secrets.MAIL_USERNAME }}>
-          body: |
-            Commit code đã được triển khai thành công!
-            
-            Repository: ${{ github.repository }}
-            Branch: ${{ github.ref_name }}
-            Commit: ${{ github.sha }}
-            Commit message: ${{ github.event.head_commit.message }}
-            
-            Người commit: ${{ github.actor }}
-            Thời gian: ${{ github.event.head_commit.timestamp }}
-            
-            Link tới commit: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
-          content_type: text/plain
