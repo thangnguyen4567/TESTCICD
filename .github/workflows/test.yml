@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
 
     strategy:
       matrix:
@@ -28,4 +31,14 @@ jobs:
         run: npm ci
       
       - name: Run tests
-        run: npm test 
+        run: npm test
+        
+      - name: Verify tests passed
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const conclusion = "${{ job.status }}";
+            if (conclusion !== "success") {
+              core.setFailed("Tests must pass before merging to main branch!");
+            } 
